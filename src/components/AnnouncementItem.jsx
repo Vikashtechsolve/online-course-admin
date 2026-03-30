@@ -1,14 +1,6 @@
 import { useState } from "react";
 import { MoreHorizontal } from "lucide-react";
-
-function formatPostedDate(iso) {
-  if (!iso) return "";
-  return new Date(iso).toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
+import { formatDate } from "../utils/date";
 
 export default function AnnouncementItem({ item, onEdit, onDelete }) {
   const [openMenu, setOpenMenu] = useState(false);
@@ -35,7 +27,7 @@ export default function AnnouncementItem({ item, onEdit, onDelete }) {
         <p className="text-gray-600 text-sm mb-3 leading-relaxed whitespace-pre-wrap">{item.body}</p>
 
         <p className="text-sm text-gray-500">
-          <span className="font-medium text-gray-700">Posted:</span> {formatPostedDate(item.createdAt)}
+          <span className="font-medium text-gray-700">Posted:</span> {formatDate(item.createdAt)}
           {item.author?.name ? (
             <>
               {" "}

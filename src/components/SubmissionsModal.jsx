@@ -1,17 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, Loader2, ExternalLink, Check } from "lucide-react";
 import { getSubmissions, gradeSubmission } from "../utils/assignmentsApi";
-
-function formatDate(d) {
-  if (!d) return "—";
-  return new Date(d).toLocaleString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+import { formatDateTime } from "../utils/date";
 
 export default function SubmissionsModal({ assignment, onClose, onUpdate }) {
   const [submissions, setSubmissions] = useState([]);
@@ -149,7 +139,7 @@ export default function SubmissionsModal({ assignment, onClose, onUpdate }) {
                           View submission
                         </a>
                         <p className="text-xs text-slate-500 mt-1">
-                          Submitted: {formatDate(sub.submittedAt)}
+                          Submitted: {formatDateTime(sub.submittedAt)}
                         </p>
                       </>
                     )}

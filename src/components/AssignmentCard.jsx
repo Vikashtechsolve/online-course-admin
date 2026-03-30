@@ -3,15 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Calendar, Users, ExternalLink, Pencil } from "lucide-react";
 import SubmissionsModal from "./SubmissionsModal";
 import { htmlToPlainText } from "../utils/htmlToPlainText";
-
-function formatDate(d) {
-  if (!d) return "";
-  return new Date(d).toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
+import { formatDate } from "../utils/date";
 
 export default function AssignmentCard({ assignment, onUpdate }) {
   const navigate = useNavigate();

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Calendar, Loader2, Trash2, Upload } from "lucide-react";
 import { deleteLecture } from "../utils/lecturesApi";
+import { formatDateTime } from "../utils/date";
 
 const statusColor = {
   live: "bg-red-100 text-red-600 border-red-200",
@@ -11,25 +12,13 @@ const statusColor = {
   draft: "bg-slate-100 text-slate-600 border-slate-200",
 };
 
-function formatDate(d) {
-  if (!d) return "";
-  const date = new Date(d);
-  return date.toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 export default function LectureItem({ lecture, courseId, onDelete }) {
   const navigate = useNavigate();
   const [deleting, setDeleting] = useState(false);
 
   const lectureId = lecture._id;
   const teacherName = lecture.teacher?.name || "Teacher";
-  const dateStr = formatDate(lecture.scheduledAt);
+  const dateStr = formatDateTime(lecture.scheduledAt);
   const durationStr = lecture.duration ? `${lecture.duration} min` : "";
   const status = lecture.status || "draft";
   const hasMeetingLink = !!lecture.meetingLink;

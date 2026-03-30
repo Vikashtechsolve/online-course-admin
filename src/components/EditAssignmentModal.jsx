@@ -2,12 +2,7 @@ import { useState, useEffect } from "react";
 import { X, Upload, Loader2 } from "lucide-react";
 import RichTextArea from "./RichTextArea";
 import { updateAssignment } from "../utils/assignmentsApi";
-
-function formatDateForInput(d) {
-  if (!d) return "";
-  const date = new Date(d);
-  return date.toISOString().slice(0, 10);
-}
+import { formatDateForInput } from "../utils/date";
 
 export default function EditAssignmentModal({ assignment, onClose, onSuccess }) {
   const [submitting, setSubmitting] = useState(false);

@@ -6,11 +6,7 @@ import RichTextArea from "../components/RichTextArea";
 import { createAssignment, updateAssignment, getAssignmentById } from "../utils/assignmentsApi";
 import { getCourses } from "../utils/coursesApi";
 import { useUser } from "../context/UserContext";
-
-function formatDateForInput(d) {
-  if (!d) return "";
-  return new Date(d).toISOString().slice(0, 10);
-}
+import { formatDateForInput } from "../utils/date";
 
 export default function CreateAssignment() {
   const navigate = useNavigate();
