@@ -8,21 +8,34 @@ import RichTextArea from "../components/RichTextArea";
 import {
   getLectureById,
   updateLecture,
-  uploadLectureMaterials,
 } from "../utils/lecturesApi";
 import { useUser } from "../context/UserContext";
+import { useUpload } from "../context/UploadContext";
 
 export default function LectureSession() {
   const { courseId, lectureId } = useParams();
   const navigate = useNavigate();
   const { user } = useUser();
+  const { uploads, startUpload } = useUpload();
   const [lecture, setLecture] = useState(null);
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("notes");
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState("");
   const [updatingStatus, setUpdatingStatus] = useState(false);
+
+  const uploading = uploads.some(
+    (u) =>
+      u.lectureId === lectureId &&
+      (u.status === "uploading" || u.status === "processing")
+  );
+  const videoProcessing =
+    lecture?.videoProcessingStatus === "processing" ||
+    uploads.some(
+      (u) =>
+        u.lectureId === lectureId &&
+        u.field === "video" &&
+        (u.status === "uploading" || u.status === "processing")
+    );
   const [showEditModal, setShowEditModal] = useState(false);
   const [testLinkInput, setTestLinkInput] = useState("");
   const [savingTestLink, setSavingTestLink] = useState(false);
@@ -64,27 +77,35 @@ export default function LectureSession() {
     }
   };
 
-  const handleFileSelect = async (field, files) => {
-    if (!files?.length) return;
-    setUploading(true);
-    setUploadProgress(`Uploading ${field}...`);
-    try {
-      const formData = new FormData();
-      if (field === "video" && files[0]) {
-        formData.append("video", files[0]);
-      } else if (field === "notesPdf" && files[0]) {
-        formData.append("notesPdf", files[0]);
-      } else if (field === "pptFile" && files[0]) {
-        formData.append("pptFile", files[0]);
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.detail?.lectureId === lectureId && e.detail?.lecture) {
+        setLecture(e.detail.lecture);
       }
-      const updated = await uploadLectureMaterials(lectureId, formData);
-      setLecture(updated);
-      setUploadProgress("");
-    } catch (err) {
-      setUploadProgress(err.response?.data?.message || "Upload failed");
-    } finally {
-      setUploading(false);
-    }
+    };
+    window.addEventListener("lecture-upload:done", handler);
+    return () => window.removeEventListener("lecture-upload:done", handler);
+  }, [lectureId]);
+
+  useEffect(() => {
+    if (lecture?.videoProcessingStatus !== "processing") return;
+    const interval = setInterval(async () => {
+      try {
+        const data = await getLectureById(lectureId);
+        setLecture(data);
+        if (data.videoProcessingStatus !== "processing") {
+          clearInterval(interval);
+        }
+      } catch {
+        /* retry */
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [lectureId, lecture?.videoProcessingStatus]);
+
+  const handleFileSelect = (field, files) => {
+    if (!files?.length) return;
+    startUpload(lectureId, field, files[0]);
   };
 
   const triggerFileInput = (field) => {
@@ -97,7 +118,11 @@ export default function LectureSession() {
     if (!confirm(`Remove ${label}?`)) return;
     try {
       const updates = {};
-      if (field === "video") updates.videoUrl = "";
+      if (field === "video") {
+        updates.videoUrl = "";
+        updates.videoProcessingStatus = "none";
+        updates.videoProcessingError = "";
+      }
       if (field === "notesPdf")
         updates.notes = { image: lecture.notes?.image || "", pdf: "" };
       if (field === "pptFile")
@@ -282,13 +307,6 @@ export default function LectureSession() {
           />
 
           <div className="p-5 space-y-4">
-            {uploading && (
-              <div className="flex items-center gap-2 text-sm text-slate-600 py-2 px-3 rounded-lg bg-blue-50 border border-blue-100">
-                <Loader2 size={16} className="animate-spin shrink-0" />
-                {uploadProgress}
-              </div>
-            )}
-
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {/* Video */}
               <div className="rounded-lg border border-slate-200 p-4 flex flex-col min-h-[120px]">
@@ -296,7 +314,27 @@ export default function LectureSession() {
                   <Video size={18} className="text-[#B11C20]" />
                   Video
                 </div>
-                {lecture.videoUrl ? (
+                {videoProcessing ? (
+                  <div className="flex-1 flex flex-col items-center justify-center gap-2 py-4 text-slate-600">
+                    <Loader2 size={22} className="animate-spin text-[#2360BB]" />
+                    <span className="text-sm text-center px-1">
+                      Processing video… Large files may take several minutes.
+                    </span>
+                  </div>
+                ) : lecture.videoProcessingStatus === "failed" ? (
+                  <div className="flex-1 flex flex-col gap-2">
+                    <div className="rounded-lg bg-red-50 border border-red-100 px-3 py-2 text-xs text-red-700">
+                      {lecture.videoProcessingError || "Video processing failed."}
+                    </div>
+                    <button
+                      onClick={() => triggerFileInput("video")}
+                      disabled={uploading}
+                      className="text-sm py-2 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-50"
+                    >
+                      Try again
+                    </button>
+                  </div>
+                ) : lecture.videoUrl ? (
                   <div className="flex-1 flex flex-col gap-2">
                     <div className="flex items-center gap-2 py-2 px-3 rounded-lg bg-emerald-50 border border-emerald-100">
                       <Check size={16} className="text-emerald-600 shrink-0" />

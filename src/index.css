@@ -209,3 +209,8 @@ textarea:focus {
 .practice-content hr { border: none; border-top: 1px solid #e2e8f0; margin: 1em 0; }
 .practice-content code, .practice-content pre { background: #f1f5f9; padding: 0.125em 0.25em; border-radius: 0.25rem; font-size: 0.9em; }
 .practice-content pre { display: block; padding: 0.75em; overflow-x: auto; }
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
