@@ -3,6 +3,7 @@ import api from "./api";
 export const COURSE_TYPES = [
   { value: "fullstack_developer", label: "Full Stack MERN" },
   { value: "data_analytics", label: "Data Analytics" },
+  { value: "generative_ai", label: "Generative AI" },
 ];
 
 export const PROGRAM_OPTIONS = [
