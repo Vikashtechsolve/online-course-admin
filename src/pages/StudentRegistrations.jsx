@@ -5,6 +5,8 @@ import {
   COURSE_TYPES,
   MARKETING_STATUS_OPTIONS,
   PROGRAM_OPTIONS,
+  PAYMENT_PLAN_OPTIONS,
+  PAYMENT_STATUS_OPTIONS,
   fetchIntakeBatches,
   createIntakeBatch,
   updateIntakeBatch,
@@ -58,6 +60,8 @@ export default function StudentRegistrations() {
   const [filterBatch, setFilterBatch] = useState("");
   const [filterProgram, setFilterProgram] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterPaymentStatus, setFilterPaymentStatus] = useState("");
+  const [filterPaymentPlan, setFilterPaymentPlan] = useState("");
   const [search, setSearch] = useState("");
 
   const [editRow, setEditRow] = useState(null);
@@ -90,9 +94,20 @@ export default function StudentRegistrations() {
       intakeBatchId: filterBatch || undefined,
       program: filterProgram || undefined,
       marketingStatus: filterStatus || undefined,
+      paymentStatus: filterPaymentStatus || undefined,
+      paymentPlan: filterPaymentPlan || undefined,
       search: search.trim() || undefined,
     }),
-    [page, filterCourse, filterBatch, filterProgram, filterStatus, search]
+    [
+      page,
+      filterCourse,
+      filterBatch,
+      filterProgram,
+      filterStatus,
+      filterPaymentStatus,
+      filterPaymentPlan,
+      search,
+    ]
   );
 
   const exportParams = useMemo(
@@ -101,9 +116,19 @@ export default function StudentRegistrations() {
       intakeBatchId: filterBatch || undefined,
       program: filterProgram || undefined,
       marketingStatus: filterStatus || undefined,
+      paymentStatus: filterPaymentStatus || undefined,
+      paymentPlan: filterPaymentPlan || undefined,
       search: search.trim() || undefined,
     }),
-    [filterCourse, filterBatch, filterProgram, filterStatus, search]
+    [
+      filterCourse,
+      filterBatch,
+      filterProgram,
+      filterStatus,
+      filterPaymentStatus,
+      filterPaymentPlan,
+      search,
+    ]
   );
 
   const loadRegistrations = useCallback(async () => {
@@ -473,6 +498,42 @@ export default function StudentRegistrations() {
                   ))}
                 </select>
               </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-gray-500">Payment</label>
+                <select
+                  value={filterPaymentStatus}
+                  onChange={(e) => {
+                    setFilterPaymentStatus(e.target.value);
+                    setPage(1);
+                  }}
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm min-w-[120px]"
+                >
+                  <option value="">All</option>
+                  {PAYMENT_STATUS_OPTIONS.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-gray-500">Plan</label>
+                <select
+                  value={filterPaymentPlan}
+                  onChange={(e) => {
+                    setFilterPaymentPlan(e.target.value);
+                    setPage(1);
+                  }}
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm min-w-[140px]"
+                >
+                  <option value="">All</option>
+                  {PAYMENT_PLAN_OPTIONS.map((p) => (
+                    <option key={p.value} value={p.value}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className="flex flex-col gap-1 flex-1 min-w-[180px]">
                 <label className="text-xs text-gray-500">Search</label>
                 <input
@@ -516,6 +577,8 @@ export default function StudentRegistrations() {
                       <th className="text-left p-3 font-semibold text-gray-700">Contact</th>
                       <th className="text-left p-3 font-semibold text-gray-700">Batch</th>
                       <th className="text-left p-3 font-semibold text-gray-700">Program</th>
+                      <th className="text-left p-3 font-semibold text-gray-700">Payment</th>
+                      <th className="text-left p-3 font-semibold text-gray-700">Paid</th>
                       <th className="text-left p-3 font-semibold text-gray-700">Status</th>
                       <th className="text-right p-3 font-semibold text-gray-700">Manage</th>
                     </tr>
@@ -538,6 +601,40 @@ export default function StudentRegistrations() {
                           <div className="text-xs text-gray-400">{courseLabel(row.courseType)}</div>
                         </td>
                         <td className="p-3 capitalize">{row.program}</td>
+                        <td className="p-3 text-gray-600 text-xs">
+                          {row.paymentPlan ? (
+                            <>
+                              <div className="capitalize">
+                                {row.paymentPlan.replace("_", " ")}
+                              </div>
+                              <div
+                                className={
+                                  row.paymentStatus === "completed"
+                                    ? "text-green-700 font-medium"
+                                    : "text-amber-700"
+                                }
+                              >
+                                {row.paymentStatus || "—"}
+                              </div>
+                            </>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                        <td className="p-3 text-gray-600 whitespace-nowrap">
+                          {row.amountPaid > 0 ? (
+                            <>
+                              <div className="font-medium">₹{row.amountPaid}</div>
+                              {row.balanceDue > 0 && (
+                                <div className="text-xs text-gray-400">
+                                  Due ₹{row.balanceDue}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
                         <td className="p-3">
                           <span className="text-xs font-medium px-2 py-1 rounded-md bg-amber-50 text-amber-900">
                             {MARKETING_STATUS_OPTIONS.find((x) => x.value === row.marketingStatus)
@@ -674,6 +771,31 @@ export default function StudentRegistrations() {
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
             <h3 className="text-lg font-semibold text-gray-900">Lead — {editRow.fullName}</h3>
             <p className="text-sm text-gray-600">{editRow.email}</p>
+            {editRow.paymentPlan && (
+              <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 text-sm space-y-1">
+                <p>
+                  <span className="text-gray-500">Payment plan:</span>{" "}
+                  <span className="font-medium capitalize">
+                    {editRow.paymentPlan.replace("_", " ")}
+                  </span>
+                </p>
+                <p>
+                  <span className="text-gray-500">Status:</span>{" "}
+                  <span className="font-medium">{editRow.paymentStatus}</span>
+                </p>
+                <p>
+                  <span className="text-gray-500">Paid:</span> ₹{editRow.amountPaid ?? 0}
+                  {editRow.balanceDue > 0 && (
+                    <span className="text-gray-500"> · Due ₹{editRow.balanceDue}</span>
+                  )}
+                </p>
+                {editRow.razorpayPaymentId && (
+                  <p className="text-xs text-gray-500 break-all">
+                    Razorpay: {editRow.razorpayPaymentId}
+                  </p>
+                )}
+              </div>
+            )}
             <div>
               <label className="text-xs text-gray-500 block mb-1">Marketing status</label>
               <select

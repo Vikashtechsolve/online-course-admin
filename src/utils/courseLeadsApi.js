@@ -9,6 +9,19 @@ export const COURSE_TYPES = [
 export const PROGRAM_OPTIONS = [
   { value: "mini", label: "Mini" },
   { value: "macro", label: "Macro" },
+  { value: "standard", label: "Standard" },
+];
+
+export const PAYMENT_PLAN_OPTIONS = [
+  { value: "seat_booking", label: "Seat booking (₹99)" },
+  { value: "full_payment", label: "Full payment (10% off)" },
+];
+
+export const PAYMENT_STATUS_OPTIONS = [
+  { value: "pending", label: "Pending" },
+  { value: "completed", label: "Completed" },
+  { value: "failed", label: "Failed" },
+  { value: "refunded", label: "Refunded" },
 ];
 
 export const MARKETING_STATUS_OPTIONS = [
