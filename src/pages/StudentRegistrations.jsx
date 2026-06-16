@@ -40,6 +40,18 @@ function formatDateTime(d) {
   }
 }
 
+function paymentStatusBadgeClass(status) {
+  if (status === "completed") return "bg-green-100 text-green-800";
+  if (status === "pending") return "bg-amber-100 text-amber-900";
+  if (status === "failed") return "bg-red-100 text-red-800";
+  if (status === "refunded") return "bg-gray-200 text-gray-700";
+  return "bg-gray-100 text-gray-600";
+}
+
+function paymentPlanLabel(plan) {
+  return PAYMENT_PLAN_OPTIONS.find((p) => p.value === plan)?.label || plan?.replace("_", " ") || "—";
+}
+
 export default function StudentRegistrations() {
   const [tab, setTab] = useState("registrations");
 
@@ -67,6 +79,10 @@ export default function StudentRegistrations() {
   const [editRow, setEditRow] = useState(null);
   const [editStatus, setEditStatus] = useState("");
   const [editNotes, setEditNotes] = useState("");
+  const [editPaymentStatus, setEditPaymentStatus] = useState("");
+  const [editAmountPaid, setEditAmountPaid] = useState("");
+  const [editBalanceDue, setEditBalanceDue] = useState("");
+  const [editRazorpayPaymentId, setEditRazorpayPaymentId] = useState("");
   const [savingRow, setSavingRow] = useState(false);
 
   const loadBatches = useCallback(async () => {
@@ -233,16 +249,53 @@ export default function StudentRegistrations() {
     setEditRow(row);
     setEditStatus(row.marketingStatus);
     setEditNotes(row.adminNotes || "");
+    setEditPaymentStatus(row.paymentStatus || "pending");
+    setEditAmountPaid(row.amountPaid != null ? String(row.amountPaid) : "0");
+    setEditBalanceDue(row.balanceDue != null ? String(row.balanceDue) : "0");
+    setEditRazorpayPaymentId(row.razorpayPaymentId || "");
   };
 
-  const saveLead = async () => {
+  const buildLeadUpdatePayload = (overrides = {}) => {
+    const payload = {
+      marketingStatus: editStatus,
+      adminNotes: editNotes,
+      ...overrides,
+    };
+    if (editRow?.paymentPlan) {
+      payload.paymentStatus = overrides.paymentStatus ?? editPaymentStatus;
+      payload.amountPaid = Number(
+        overrides.amountPaid ?? editAmountPaid
+      );
+      payload.balanceDue = Number(
+        overrides.balanceDue ?? editBalanceDue
+      );
+      payload.razorpayPaymentId =
+        overrides.razorpayPaymentId ?? editRazorpayPaymentId;
+    }
+    return payload;
+  };
+
+  const saveLead = async (overrides = {}) => {
     if (!editRow) return;
+
+    const payload = buildLeadUpdatePayload(overrides);
+    if (editRow.paymentPlan) {
+      if (Number.isNaN(payload.amountPaid) || payload.amountPaid < 0) {
+        alert("Enter a valid amount paid.");
+        return;
+      }
+      if (Number.isNaN(payload.balanceDue) || payload.balanceDue < 0) {
+        alert("Enter a valid balance due.");
+        return;
+      }
+    }
+
     setSavingRow(true);
     try {
-      const updated = await updateRegistration(editRow._id, {
-        marketingStatus: editStatus,
-        adminNotes: editNotes,
-      });
+      const updated = await updateRegistration(
+        editRow._id,
+        buildLeadUpdatePayload(overrides)
+      );
       setItems((prev) => prev.map((x) => (x._id === updated._id ? updated : x)));
       setEditRow(null);
     } catch (e) {
@@ -250,6 +303,18 @@ export default function StudentRegistrations() {
     } finally {
       setSavingRow(false);
     }
+  };
+
+  const markBalanceCollected = () => {
+    if (!editRow?.paymentPlan) return;
+    const paid = Number(editAmountPaid) || 0;
+    const due = Number(editBalanceDue) || 0;
+    saveLead({
+      balanceDue: 0,
+      paymentStatus: "completed",
+      amountPaid: paid + due,
+      marketingStatus: "enrolled",
+    });
   };
 
   const handleExport = async () => {
@@ -579,7 +644,7 @@ export default function StudentRegistrations() {
                       <th className="text-left p-3 font-semibold text-gray-700">Program</th>
                       <th className="text-left p-3 font-semibold text-gray-700">Payment</th>
                       <th className="text-left p-3 font-semibold text-gray-700">Paid</th>
-                      <th className="text-left p-3 font-semibold text-gray-700">Status</th>
+                      <th className="text-left p-3 font-semibold text-gray-700">Lead status</th>
                       <th className="text-right p-3 font-semibold text-gray-700">Manage</th>
                     </tr>
                   </thead>
@@ -604,21 +669,19 @@ export default function StudentRegistrations() {
                         <td className="p-3 text-gray-600 text-xs">
                           {row.paymentPlan ? (
                             <>
-                              <div className="capitalize">
-                                {row.paymentPlan.replace("_", " ")}
+                              <div className="text-gray-700 font-medium">
+                                {paymentPlanLabel(row.paymentPlan)}
                               </div>
-                              <div
-                                className={
-                                  row.paymentStatus === "completed"
-                                    ? "text-green-700 font-medium"
-                                    : "text-amber-700"
-                                }
+                              <span
+                                className={`inline-block mt-1 text-[11px] font-semibold px-2 py-0.5 rounded-md capitalize ${paymentStatusBadgeClass(row.paymentStatus)}`}
                               >
-                                {row.paymentStatus || "—"}
-                              </div>
+                                {PAYMENT_STATUS_OPTIONS.find(
+                                  (x) => x.value === row.paymentStatus
+                                )?.label || row.paymentStatus || "—"}
+                              </span>
                             </>
                           ) : (
-                            "—"
+                            <span className="text-gray-400">Free lead</span>
                           )}
                         </td>
                         <td className="p-3 text-gray-600 whitespace-nowrap">
@@ -768,36 +831,108 @@ export default function StudentRegistrations() {
 
       {editRow && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900">Lead — {editRow.fullName}</h3>
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Manage registration — {editRow.fullName}
+            </h3>
             <p className="text-sm text-gray-600">{editRow.email}</p>
-            {editRow.paymentPlan && (
-              <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 text-sm space-y-1">
-                <p>
-                  <span className="text-gray-500">Payment plan:</span>{" "}
-                  <span className="font-medium capitalize">
-                    {editRow.paymentPlan.replace("_", " ")}
+
+            {editRow.paymentPlan ? (
+              <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-4 space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#B11C20]">
+                  Payment
+                </p>
+                <p className="text-sm text-gray-700">
+                  Plan:{" "}
+                  <span className="font-medium">
+                    {paymentPlanLabel(editRow.paymentPlan)}
                   </span>
                 </p>
-                <p>
-                  <span className="text-gray-500">Status:</span>{" "}
-                  <span className="font-medium">{editRow.paymentStatus}</span>
-                </p>
-                <p>
-                  <span className="text-gray-500">Paid:</span> ₹{editRow.amountPaid ?? 0}
-                  {editRow.balanceDue > 0 && (
-                    <span className="text-gray-500"> · Due ₹{editRow.balanceDue}</span>
-                  )}
-                </p>
-                {editRow.razorpayPaymentId && (
-                  <p className="text-xs text-gray-500 break-all">
-                    Razorpay: {editRow.razorpayPaymentId}
+
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">
+                    Payment status
+                  </label>
+                  <select
+                    value={editPaymentStatus}
+                    onChange={(e) => setEditPaymentStatus(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  >
+                    {PAYMENT_STATUS_OPTIONS.map((s) => (
+                      <option key={s.value} value={s.value}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">
+                      Amount paid (₹)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={editAmountPaid}
+                      onChange={(e) => setEditAmountPaid(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">
+                      Balance due (₹)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={editBalanceDue}
+                      onChange={(e) => setEditBalanceDue(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">
+                    Razorpay payment ID
+                  </label>
+                  <input
+                    type="text"
+                    value={editRazorpayPaymentId}
+                    onChange={(e) => setEditRazorpayPaymentId(e.target.value)}
+                    placeholder="pay_…"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-mono"
+                  />
+                </div>
+
+                {editRow.paidAt && (
+                  <p className="text-xs text-gray-500">
+                    Last paid: {formatDateTime(editRow.paidAt)}
                   </p>
                 )}
+
+                {Number(editBalanceDue) > 0 && editPaymentStatus === "completed" && (
+                  <button
+                    type="button"
+                    disabled={savingRow}
+                    onClick={markBalanceCollected}
+                    className="w-full text-sm font-medium text-green-800 bg-green-50 border border-green-200 rounded-lg py-2 hover:bg-green-100 disabled:opacity-50"
+                  >
+                    Mark joining fee collected (clear balance · enroll)
+                  </button>
+                )}
               </div>
+            ) : (
+              <p className="text-sm text-gray-500 rounded-lg bg-gray-50 border border-gray-200 p-3">
+                This lead has no online payment — only marketing status applies.
+              </p>
             )}
+
             <div>
-              <label className="text-xs text-gray-500 block mb-1">Marketing status</label>
+              <label className="text-xs text-gray-500 block mb-1">Lead status</label>
               <select
                 value={editStatus}
                 onChange={(e) => setEditStatus(e.target.value)}
@@ -817,7 +952,7 @@ export default function StudentRegistrations() {
                 onChange={(e) => setEditNotes(e.target.value)}
                 rows={4}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                placeholder="Call notes, next follow-up…"
+                placeholder="Call notes, payment follow-up, next action…"
               />
             </div>
             <div className="flex justify-end gap-2 pt-2">
@@ -831,10 +966,10 @@ export default function StudentRegistrations() {
               <button
                 type="button"
                 disabled={savingRow}
-                onClick={saveLead}
+                onClick={() => saveLead()}
                 className="px-4 py-2 rounded-lg bg-[#B11C20] text-white text-sm font-medium hover:bg-red-800 disabled:opacity-50"
               >
-                {savingRow ? "Saving…" : "Save"}
+                {savingRow ? "Saving…" : "Save changes"}
               </button>
             </div>
           </div>

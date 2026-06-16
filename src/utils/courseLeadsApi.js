@@ -14,7 +14,7 @@ export const PROGRAM_OPTIONS = [
 
 export const PAYMENT_PLAN_OPTIONS = [
   { value: "seat_booking", label: "Seat booking (₹99)" },
-  { value: "full_payment", label: "Full payment (10% off)" },
+  { value: "full_payment", label: "Full payment (no registration fee)" },
 ];
 
 export const PAYMENT_STATUS_OPTIONS = [
